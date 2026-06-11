@@ -4,8 +4,12 @@
 import * as THREE from 'three';
 import { Player, Combatant } from './player.js';
 import { WeaponRig, ViewModel } from './weapons.js';
+import { Bot, botLoadouts } from './bots.js';
 import { Particles } from '../engine/particles.js';
 import { makeTestMap } from '../maps/common.js';
+import { pickNames } from '../data/bot-names.js';
+import { WEAPONS } from '../data/weapons-data.js';
+import { rand } from '../engine/utils.js';
 
 const MAP_BUILDERS = { test: makeTestMap };
 
@@ -37,7 +41,7 @@ export class Match {
     const sp = this.map.spawns.blue[0];
     this.player.spawnAt(sp.x, sp.z, sp.yaw);
 
-    // ?dummies=N: أهداف ساكنة لاختبار الأسلحة (فحص آلي)
+    // ?dummies=N: أهداف ساكنة لاختبار الأسلحة (فحص آلي — بدون بوتات)
     if (game.params.has('dummies')) {
       const n = Number(game.params.get('dummies')) || 3;
       for (let i = 0; i < n; i++) {
@@ -50,6 +54,49 @@ export class Match {
         this.combatants.push(d);
         this.dummies ??= [];
         this.dummies.push(d);
+      }
+    } else {
+      this.spawnBots(opts.difficulty || 'mid');
+    }
+  }
+
+  /** 11 بوت: 5 حلفاء + 6 أعداء بأسماء سعودية وأسلحة موزعة منطقيًا */
+  spawnBots(difficulty) {
+    const names = pickNames(11);
+    const blueW = botLoadouts(5);
+    const redW = botLoadouts(6);
+    for (let i = 0; i < 5; i++) {
+      this.bots.push(new Bot(this, {
+        team: 'blue', name: names[i], weaponId: blueW[i], difficulty,
+      }));
+    }
+    for (let i = 0; i < 6; i++) {
+      this.bots.push(new Bot(this, {
+        team: 'red', name: names[5 + i], weaponId: redW[i], difficulty,
+      }));
+    }
+    this.combatants.push(...this.bots);
+    for (const bot of this.bots) this.respawn(bot, true);
+  }
+
+  /** ريسباون أساسي عند نقاط الفريق (يصبح ديناميكيًا في مرحلة الأنماط) */
+  respawn(c, initial = false) {
+    const list = this.map.spawns[c.team];
+    const s = list[(Math.random() * list.length) | 0];
+    c.spawnAt(s.x + rand(-1.5, 1.5), s.z + rand(-1.5, 1.5), s.yaw);
+    if (initial) c.protT = 0.5;
+  }
+
+  /** سمع إطلاق النار: دعم الحلفاء وتحري مصدر النيران (القسم 6) */
+  notifyShot(shooter) {
+    for (const bot of this.bots) {
+      if (!bot.alive || bot === shooter || bot.target) continue;
+      const d = Math.hypot(bot.pos.x - shooter.pos.x, bot.pos.z - shooter.pos.z);
+      if (d > 26) continue;
+      if (shooter.team === bot.team) {
+        if (shooter.target) bot.investigate(shooter.target.pos.x, shooter.target.pos.z);
+      } else {
+        bot.investigate(shooter.pos.x, shooter.pos.z);
       }
     }
   }
@@ -68,15 +115,33 @@ export class Match {
         }
       }
     }
+
+    // الريسباون بعد 3 ثوانٍ
+    for (const c of this.combatants) {
+      if (c.alive || this.dummies?.includes(c)) continue;
+      c.respawnT -= dt;
+      if (c.respawnT <= 0) this.respawn(c);
+    }
+
+    // عدّاد ريسباون اللاعب
+    if (!this.player.alive) {
+      const killer = this.player.lastKiller;
+      this.hud.setRespawn(
+        Math.max(0, this.player.respawnT),
+        killer && killer !== this.player ? killer.name : null,
+        WEAPONS[this.player.lastKillerWeapon]?.name,
+      );
+    } else {
+      this.hud.setRespawn(null);
+    }
+
     this.particles.update(dt);
   }
 
-  /** حدث قتل — يكتمل في مرحلة الأنماط (سكور/ريسباون ديناميكي) */
+  /** حدث قتل — السكور حسب النمط يكتمل في مرحلة الأنماط */
   onKill(killer, victim, info) {
     this.hud?.killfeed(killer, victim, info);
-    if (killer && killer !== victim) {
-      this.teamScores[killer.team] = (this.teamScores[killer.team] || 0);
-    }
+    this.game.audio?.killConfirm?.();
   }
 
   enemiesOf(team) {

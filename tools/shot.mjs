@@ -60,6 +60,10 @@ for (const act of actions) {
   else if (act === 'rup') await page.mouse.up({ button: 'right' });
   else if (act.startsWith('wait:')) await page.waitForTimeout(Number(act.slice(5)));
   else if (act.startsWith('eval:')) await page.evaluate(act.slice(5));
+  else if (act.startsWith('waitfn:')) {
+    // انتظار حتى يتحقق تعبير JS (أو مهلة 150 ثانية)
+    await page.waitForFunction(act.slice(7), { timeout: 150000, polling: 300 }).catch(() => {});
+  }
   else if (act.startsWith('gametime:')) {
     // انتظار حتى يبلغ زمن اللعبة قيمة معيّنة (مستقل عن سرعة التصيير)
     const target = Number(act.slice(9));

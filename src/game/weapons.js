@@ -320,6 +320,8 @@ export function fireHitscan(match, shooter, w, spreadRad) {
     game.audio?.hitmarker(killedAny);
   }
 
+  match.notifyShot?.(shooter);
+
   // صوت موضعي بالنسبة للمستمع (اللاعب)
   const lp = match.player;
   if (shooter === lp) {

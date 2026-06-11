@@ -174,6 +174,20 @@ export class HUD {
     this.els['prot-note'].classList.toggle('hidden', !on);
   }
 
+  /** عدّاد الريسباون مع اسم القاتل وسلاحه */
+  setRespawn(seconds, killerName, weaponName) {
+    const box = this.els['respawn-box'];
+    if (seconds === null) {
+      box.classList.add('hidden');
+      return;
+    }
+    box.classList.remove('hidden');
+    this.els['respawn-count'].textContent = Math.ceil(seconds);
+    this.els['respawn-killer'].innerHTML = killerName
+      ? `${STR.killedBy} <b>${killerName}</b>${weaponName ? ` (${weaponName})` : ''}`
+      : '';
+  }
+
   // ====== تُستكمل في مرحلة الأنماط ======
   showScoreboard() {}
   update() {}
