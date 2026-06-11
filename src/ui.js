@@ -36,6 +36,18 @@ export class UI {
       this.settingsReturnTo = 'menu';
       this.showScreen('settings');
     });
+
+    // أزرار تدفق اللعب
+    this.els['btn-start'].addEventListener('click', () => game.startGame());
+    this.els['btn-resume'].addEventListener('click', () => game.resume());
+    this.els['btn-restart'].addEventListener('click', () => game.restart());
+    this.els['btn-quit'].addEventListener('click', () => game.quitToMenu());
+    this.els['btn-again'].addEventListener('click', () => game.startGame());
+    this.els['btn-go-menu'].addEventListener('click', () => game.quitToMenu());
+    this.els['btn-pause-settings'].addEventListener('click', () => {
+      this.settingsReturnTo = 'pause';
+      this.showScreen('settings');
+    });
     for (const btn of document.querySelectorAll('[data-back]')) {
       btn.addEventListener('click', () => {
         const from = btn.closest('.screen').id;

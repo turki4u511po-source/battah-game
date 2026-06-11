@@ -4,6 +4,8 @@ import * as THREE from 'three';
 import { CONFIG } from './config.js';
 import { Arena } from './arena.js';
 import { UI } from './ui.js';
+import { Input } from './input.js';
+import { Player } from './player.js';
 
 class Game {
   constructor() {
@@ -28,19 +30,79 @@ class Game {
     this.time = 0;
     this.state = 'menu'; // menu | playing | paused | gameover
 
+    // تُستبدل بالقيم المحفوظة في مرحلة الواجهات
+    this.settings = { sensitivity: 1, volume: 0.8, muted: false };
+
     this.arena = new Arena(this.scene);
     this.ui = new UI(this);
+    this.input = new Input(this);
+    this.player = new Player(this);
 
     window.addEventListener('resize', () => this.onResize());
 
     this.ui.showScreen('menu');
     this.renderer.setAnimationLoop(() => this.tick());
+
+    if (this.params.has('autostart')) this.startGame();
   }
 
   onResize() {
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+
+  // ---------- تدفق الحالات ----------
+  startGame() {
+    this.player.reset();
+    this.player.head.add(this.camera);
+    this.camera.position.set(0, 0, 0);
+    this.camera.rotation.set(0, 0, 0);
+
+    this.state = 'playing';
+    this.ui.showScreen(null);
+    this.ui.setHudVisible(true);
+    this.input.clear();
+    this.input.requestLock();
+  }
+
+  pause() {
+    if (this.state !== 'playing') return;
+    this.state = 'paused';
+    this.input.releaseLock();
+    this.input.clear();
+    this.ui.setHudVisible(false);
+    this.ui.showScreen('pause');
+  }
+
+  resume() {
+    if (this.state !== 'paused') return;
+    this.state = 'playing';
+    this.ui.showScreen(null);
+    this.ui.setHudVisible(true);
+    this.input.requestLock();
+  }
+
+  restart() {
+    this.startGame();
+  }
+
+  quitToMenu() {
+    this.state = 'menu';
+    this.input.releaseLock();
+    this.input.clear();
+    this.scene.add(this.camera); // فكّ الكاميرا عن رأس اللاعب
+    this.ui.setHudVisible(false);
+    this.ui.showScreen('menu');
+  }
+
+  gameOver() {
+    // تُستكمل في مرحلة الموجات والنقاط
+    this.state = 'gameover';
+    this.input.releaseLock();
+    this.scene.add(this.camera);
+    this.ui.setHudVisible(false);
+    this.ui.showScreen('gameover');
   }
 
   /** كاميرا سينمائية تدور حول الواحة في القوائم */
@@ -56,7 +118,9 @@ class Game {
 
     this.arena.update(dt, this.time);
 
-    if (this.state === 'menu' || this.state === 'gameover') {
+    if (this.state === 'playing') {
+      this.player.update(dt);
+    } else if (this.state === 'menu' || this.state === 'gameover') {
       this.menuCamera();
     }
 
