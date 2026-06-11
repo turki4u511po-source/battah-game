@@ -11,7 +11,8 @@ const browser = await chromium.launch({
   executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
   args: ['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
 });
-const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+const [vw, vh] = (process.env.VIEW || '1280x720').split('x').map(Number);
+const page = await browser.newPage({ viewport: { width: vw, height: vh } });
 
 const errors = [];
 page.on('console', (msg) => {
@@ -42,8 +43,18 @@ for (const act of actions) {
     await page.waitForTimeout(120);
     await page.mouse.up();
   } else if (act === 'down') await page.mouse.down();
-  else if (act === 'up') await page.mouse.up(); else if (act.startsWith('wait:')) await page.waitForTimeout(Number(act.slice(5)));
+  else if (act === 'up') await page.mouse.up();
+  else if (act.startsWith('wait:')) await page.waitForTimeout(Number(act.slice(5)));
   else if (act.startsWith('eval:')) await page.evaluate(act.slice(5));
+  else if (act.startsWith('gametime:')) {
+    // انتظار حتى يبلغ زمن اللعبة قيمة معيّنة (مستقل عن سرعة التصيير)
+    const target = Number(act.slice(9));
+    await page.waitForFunction(
+      (t) => window.__battah && window.__battah.time >= t,
+      target,
+      { timeout: 180000, polling: 300 },
+    );
+  }
 }
 
 await page.waitForTimeout(waitMs);

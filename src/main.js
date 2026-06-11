@@ -8,6 +8,9 @@ import { Input } from './input.js';
 import { Player } from './player.js';
 import { Particles } from './particles.js';
 import { Weapon } from './weapon.js';
+import { DuckManager } from './duck.js';
+import { Projectiles } from './projectiles.js';
+import { Pickups } from './pickups.js';
 
 class Game {
   constructor() {
@@ -41,6 +44,9 @@ class Game {
     this.player = new Player(this);
     this.particles = new Particles(this.scene);
     this.weapon = new Weapon(this);
+    this.ducks = new DuckManager(this);
+    this.projectiles = new Projectiles(this);
+    this.pickups = new Pickups(this);
 
     window.addEventListener('resize', () => this.onResize());
 
@@ -65,13 +71,28 @@ class Game {
     this.weapon.reset();
     this.weapon.model.visible = true;
     this.particles.clear();
+    this.ducks.clear();
+    this.projectiles.clear();
+    this.pickups.clear();
 
     this.state = 'playing';
     this.ui.showScreen(null);
     this.ui.setHudVisible(true);
     this.input.clear();
     this.input.requestLock();
+
+    // ?ducks=N: نشر بط تجريبي بدون موجات (للفحص الآلي)
+    if (this.params.has('ducks')) {
+      const n = Number(this.params.get('ducks')) || 4;
+      const types = ['normal', 'fast', 'tank', 'boss'];
+      for (let i = 0; i < n; i++) {
+        this.ducks.spawn(types[i % types.length], this.arena.getSpawnPoint(this.player.root.position));
+      }
+    }
   }
+
+  /** يُستبدل بمدير الموجات في مرحلة النقاط */
+  onDuckKilled() {}
 
   pause() {
     if (this.state !== 'playing') return;
@@ -130,6 +151,9 @@ class Game {
     if (this.state === 'playing') {
       this.player.update(dt);
       this.weapon.update(dt);
+      this.ducks.update(dt);
+      this.projectiles.update(dt);
+      this.pickups.update(dt);
     } else if (this.state === 'menu' || this.state === 'gameover') {
       this.menuCamera();
     }
