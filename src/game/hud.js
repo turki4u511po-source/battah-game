@@ -4,7 +4,7 @@
 
 import * as THREE from 'three';
 import { STR } from '../data/strings-ar.js';
-import { WEAPONS } from '../data/weapons-data.js';
+import { WEAPONS, PRIMARY_IDS } from '../data/weapons-data.js';
 import { clamp } from '../engine/utils.js';
 
 const DMG_POOL = 14;
@@ -52,6 +52,29 @@ export class HUD {
     this.els = {};
     for (const el of this.root.querySelectorAll('[id]')) this.els[el.id] = el;
     this.spread = 8;
+
+    // لوحة تغيير السلاح أثناء انتظار الريسباون (القسم 7)
+    const wpanel = document.createElement('div');
+    wpanel.id = 'respawn-weapons';
+    wpanel.className = 'hidden';
+    wpanel.innerHTML = PRIMARY_IDS.map(
+      (id) => `<button class="btn small" data-weapon="${id}">${WEAPONS[id].name}</button>`,
+    ).join('');
+    this.els['respawn-box'].appendChild(wpanel);
+    this.els['respawn-weapons'] = wpanel;
+    this.els['respawn-weapon-btn'].addEventListener('click', () => {
+      wpanel.classList.toggle('hidden');
+    });
+    wpanel.addEventListener('click', (e) => {
+      const id = e.target.dataset?.weapon;
+      if (!id) return;
+      const player = this.game.match?.player;
+      if (player) {
+        player.rig.setPrimary(id);
+        this.game.audio?.swap();
+      }
+      wpanel.classList.add('hidden');
+    });
 
     // مخزن أرقام الضرر
     this.dmgPool = [];

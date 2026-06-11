@@ -9,6 +9,7 @@ import { Match } from './game/modes.js';
 import { Menus } from './ui/menus.js';
 
 const SETTINGS_KEY = 'battah.settings';
+const RECORD_KEY = 'battah.record';
 const DEFAULT_SETTINGS = {
   mouseSens: 1,
   touchSens: 1,
@@ -18,6 +19,7 @@ const DEFAULT_SETTINGS = {
   graphics: 'mid',
   defaultView: 'fps',
 };
+const DEFAULT_RECORD = { kills: 0, deaths: 0, matches: 0, tdm: { w: 0, l: 0 }, dom: { w: 0, l: 0 } };
 
 class Game {
   constructor() {
@@ -36,11 +38,7 @@ class Game {
     this.menus = new Menus(this);
 
     this.match = null;
-
-    // مشهد خلفية القوائم (يصبح مشهد ماب حيًّا في مرحلة القوائم)
-    this.menuScene = new THREE.Scene();
-    this.menuScene.background = new THREE.Color(0x10151c);
-    this.menuCam = { angle: 0 };
+    // menuScene يملؤه Menus بمشهد ماب حي بكاميرا بانورامية
 
     this.clock = new THREE.Clock();
     this.renderer.gl.setAnimationLoop(() => this.tick());
@@ -78,6 +76,49 @@ class Game {
     } catch { /* وضع خصوصية */ }
   }
 
+  restoreDefaultSettings() {
+    Object.assign(this.settings, DEFAULT_SETTINGS);
+    this.renderer.setBaseFov(this.settings.fov);
+    this.renderer.applyQuality();
+    this.audio?.applyVolume();
+    this.saveSettings();
+  }
+
+  // ---------- الريكورد (يبقى بعد إغلاق المتصفح) ----------
+  get record() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(RECORD_KEY) || '{}');
+      return {
+        ...DEFAULT_RECORD,
+        ...saved,
+        tdm: { ...DEFAULT_RECORD.tdm, ...saved.tdm },
+        dom: { ...DEFAULT_RECORD.dom, ...saved.dom },
+      };
+    } catch {
+      return structuredClone(DEFAULT_RECORD);
+    }
+  }
+
+  saveRecord(r) {
+    try { localStorage.setItem(RECORD_KEY, JSON.stringify(r)); } catch { /* خصوصية */ }
+  }
+
+  resetRecord() {
+    this.saveRecord(structuredClone(DEFAULT_RECORD));
+  }
+
+  updateRecord(winnerTeam) {
+    const r = this.record;
+    const p = this.match.player;
+    r.kills += p.kills;
+    r.deaths += p.deaths;
+    r.matches++;
+    const mode = this.match.mode.id === 'dom' ? 'dom' : 'tdm';
+    if (winnerTeam === 'blue') r[mode].w++;
+    else if (winnerTeam === 'red') r[mode].l++;
+    this.saveRecord(r);
+  }
+
   // ---------- دورة الماتش ----------
   startMatch(opts) {
     this.match?.dispose();
@@ -111,13 +152,14 @@ class Game {
     this.input.requestLock();
   }
 
-  /** نهاية الماتش بقرار النمط: شاشة النتيجة + السكوربورد */
+  /** نهاية الماتش بقرار النمط: شاشة النتيجة + السكوربورد + الريكورد */
   matchEnded(winnerTeam) {
     this.state = 'matchend';
     this.input.releaseLock();
     this.input.clear();
     this.input.setTouchVisible(false);
     this.hud.setVisible(false);
+    this.updateRecord(winnerTeam);
     this.audio?.winLose(winnerTeam === 'blue');
     this.menus.showEnd(winnerTeam);
   }
@@ -141,6 +183,8 @@ class Game {
   tick() {
     const dt = Math.min(this.clock.getDelta(), 0.05);
     this.time += dt;
+
+    this.menus.update(dt);
 
     if (this.state === 'playing' && this.match) {
       if (this.ff > 1) {

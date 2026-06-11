@@ -31,6 +31,13 @@ export function registerMap(id, builder) {
   MAP_BUILDERS[id] = builder;
 }
 
+/** بناء مشهد ماب مستقل (خلفية القائمة/المعاينات) */
+export function buildMapScene(id) {
+  const scene = new THREE.Scene();
+  const map = (MAP_BUILDERS[id] || MAP_BUILDERS.ishbiliya)(scene);
+  return { scene, map };
+}
+
 const IDLE_INTENT = { moveX: 0, moveY: 0, sprint: false, jump: false, adsHeld: false };
 
 const TEAM_HEX = { neutral: 0x9aa3ad, blue: 0x2f6fd4, red: 0xd43b2f };
