@@ -4,7 +4,7 @@
 
 import * as THREE from 'three';
 import { GRAVITY, stepMove, resolveSolids, raycastWorld } from '../engine/physics.js';
-import { clamp, damp, rand } from '../engine/utils.js';
+import { clamp, damp, lerp } from '../engine/utils.js';
 import { buildSoldier, makeNameSprite } from './soldier-model.js';
 import { STR } from '../data/strings-ar.js';
 
@@ -34,6 +34,8 @@ export class Combatant {
     this.vel = new THREE.Vector3();
     this.yaw = 0;
     this.pitch = 0;
+    this.swayP = 0; // ترنّح سكوب السنايبر — يؤثر على التصويب فعليًا
+    this.swayY = 0;
     this.onGround = true;
     this.stance = 'stand';
     this.curHeight = HEIGHTS.stand;
@@ -76,10 +78,12 @@ export class Combatant {
     return this.pos.y + this.curEye;
   }
 
-  /** اتجاه النظر/الإطلاق */
+  /** اتجاه النظر/الإطلاق (شامل ترنّح السكوب) */
   aimDir(out) {
-    const cp = Math.cos(this.pitch);
-    return out.set(Math.sin(this.yaw) * cp, Math.sin(this.pitch), Math.cos(this.yaw) * cp);
+    const yaw = this.yaw + this.swayY;
+    const pitch = this.pitch + this.swayP;
+    const cp = Math.cos(pitch);
+    return out.set(Math.sin(yaw) * cp, Math.sin(pitch), Math.cos(yaw) * cp);
   }
 
   forward2D() {
@@ -348,6 +352,8 @@ export class Player extends Combatant {
     this.recoilPitch = 0; // يضيفه السلاح
     this.recoilYaw = 0;
     this.shake = 0;
+    this.prevFire = false;
+    this.viewModel = null; // يُركَّب مع اللودآوت
 
     this._dir = new THREE.Vector3();
 
@@ -369,12 +375,19 @@ export class Player extends Combatant {
     this.game.audio?.swap();
   }
 
+  /** تركيب اللودآوت: حامل السلاح + نموذج اليد (يُستدعى من الماتش) */
+  initLoadout(primaryId, WeaponRigClass, ViewModelClass) {
+    this.rig = new WeaponRigClass(this, primaryId);
+    this.viewModel = new ViewModelClass(this);
+  }
+
   controlUpdate(dt) {
     const input = this.game.input;
 
-    // النظر
+    // النظر (حساسية أقل داخل السكوب)
     const { dx, dy } = input.consumeLook();
-    const sens = 0.0022 * this.game.settings.mouseSens;
+    const scoped = this.viewModel?.scoped;
+    const sens = 0.0022 * this.game.settings.mouseSens * (scoped ? 0.42 : 1);
     this.yaw -= dx * sens;
     this.pitch = clamp(this.pitch - dy * sens, -1.45, 1.45);
 
@@ -389,7 +402,28 @@ export class Player extends Combatant {
     this.jumpQueued = false;
 
     this.update(dt, intent);
+
+    // الإطلاق: آلي بالاستمرار، وغير الآلي بالضغطة
+    if (this.rig && this.alive) {
+      const pressed = input.fire && !this.prevFire;
+      if (input.fire) this.rig.tryFire(pressed);
+      this.prevFire = input.fire;
+    }
+
     this.updateCamera(dt);
+    this.viewModel?.update(dt);
+
+    // زوم ADS حسب السلاح
+    const w = this.rig?.current;
+    const zoom = w ? lerp(1, w.adsZoom, this.adsT) : 1;
+    this.game.renderer.setFovMult(zoom);
+
+    // كروس هير: يتسع ويضيق، ويختفي مع السكوب
+    if (this.rig) {
+      const px = 5 + this.rig.spreadDeg() * 7.5;
+      this.match.hud.setSpread(px, !!scoped || w?.melee);
+    }
+    this.match.hud.setProtected(this.protT > 0 && this.alive);
 
     // إخفاء جسد اللاعب في FPS
     const fps = this.perspective === 'fps';
@@ -414,8 +448,8 @@ export class Player extends Combatant {
     const shY = Math.cos(t * 41) * this.shake * 0.012;
 
     this.camRoot.position.set(this.pos.x, this.eyeY, this.pos.z);
-    this.camRoot.rotation.y = this.yaw + Math.PI + this.recoilYaw + shY;
-    this.camPitch.rotation.x = this.pitch + this.recoilPitch + shX;
+    this.camRoot.rotation.y = this.yaw + this.swayY + Math.PI + this.recoilYaw + shY;
+    this.camPitch.rotation.x = this.pitch + this.swayP + this.recoilPitch + shX;
 
     if (fps) {
       // اهتزاز مشي خفيف

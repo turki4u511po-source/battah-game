@@ -1,9 +1,14 @@
 // الـ HUD أثناء اللعب (القسم 10) — يُبنى بالكامل من strings-ar.
-// المرحلة 1: كروس هير ديناميكي + vignette ضرر + هيكل عام.
-// يكتمل (كيل فيد/سكور/نقاط/سكوربورد/ريسباون) في مراحل لاحقة.
+// كروس هير ديناميكي، vignette وقوس اتجاه الضرر، أرقام ضرر طافية،
+// كيل فيد بأيقونات الأسلحة (🥿 للنعال)، سكوب، عداد ذخيرة.
 
+import * as THREE from 'three';
 import { STR } from '../data/strings-ar.js';
+import { WEAPONS } from '../data/weapons-data.js';
 import { clamp } from '../engine/utils.js';
+
+const DMG_POOL = 14;
+const KILLFEED_MAX = 5;
 
 export class HUD {
   constructor(game) {
@@ -47,6 +52,55 @@ export class HUD {
     this.els = {};
     for (const el of this.root.querySelectorAll('[id]')) this.els[el.id] = el;
     this.spread = 8;
+
+    // مخزن أرقام الضرر
+    this.dmgPool = [];
+    this.dmgIdx = 0;
+    this._projV = new THREE.Vector3();
+    for (let i = 0; i < DMG_POOL; i++) {
+      const div = document.createElement('div');
+      div.className = 'dmg-num';
+      this.els['dmg-numbers'].appendChild(div);
+      this.dmgPool.push(div);
+    }
+  }
+
+  /** رقم ضرر يطفو فوق نقطة الإصابة ويتلاشى */
+  damageNumber(worldPos, amount, head = false) {
+    this._projV.copy(worldPos).project(this.game.renderer.camera);
+    if (this._projV.z > 1) return;
+    const x = (this._projV.x * 0.5 + 0.5) * window.innerWidth;
+    const y = (-this._projV.y * 0.5 + 0.5) * window.innerHeight;
+    const div = this.dmgPool[this.dmgIdx];
+    this.dmgIdx = (this.dmgIdx + 1) % DMG_POOL;
+    div.className = `dmg-num${head ? ' head' : ''}`;
+    div.textContent = Math.round(amount);
+    div.style.left = `${x + (Math.random() * 26 - 13)}px`;
+    div.style.top = `${y - 8}px`;
+    void div.offsetWidth;
+    div.classList.add('show');
+  }
+
+  /** كيل فيد: «القاتل [أيقونة السلاح] الضحية» — النعال بأيقونة 🥿 */
+  killfeed(killer, victim, info = {}) {
+    const feed = this.els.killfeed;
+    const row = document.createElement('div');
+    const me = killer?.isPlayer || victim.isPlayer;
+    row.className = `kf-row${me ? ' me' : ''}`;
+    const icon = info.weaponId === 'nial'
+      ? '🥿'
+      : (WEAPONS[info.weaponId]?.icon ?? '•');
+    const head = info.headshot ? ' ☠' : '';
+    const kName = killer ? killer.name : '—';
+    const kTeam = killer ? killer.team : 'red';
+    row.innerHTML =
+      `<span class="kf-name ${kTeam}">${kName}</span>` +
+      `<span class="kf-icon">[${icon}]${head}</span>` +
+      `<span class="kf-name ${victim.team}">${victim.name}</span>`;
+    feed.prepend(row);
+    while (feed.children.length > KILLFEED_MAX) feed.lastChild.remove();
+    setTimeout(() => row.classList.add('fade'), 4200);
+    setTimeout(() => row.remove(), 5000);
   }
 
   setVisible(v) {
@@ -120,8 +174,7 @@ export class HUD {
     this.els['prot-note'].classList.toggle('hidden', !on);
   }
 
-  // ====== تُستكمل في مراحل لاحقة ======
-  onKill() {}
+  // ====== تُستكمل في مرحلة الأنماط ======
   showScoreboard() {}
   update() {}
 }
