@@ -70,6 +70,8 @@ const state = await page.evaluate(() => {
     hp: g.player ? Math.round(g.player.health) : null,
     ammo: g.weapon ? g.weapon.ammo : null,
     ducksAlive: g.ducks ? g.ducks.aliveCount() : null,
+    bestShown: document.getElementById('menu-best-num')?.textContent,
+    goScore: document.getElementById('go-score')?.textContent,
   } : null;
 });
 

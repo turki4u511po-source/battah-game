@@ -11,6 +11,7 @@ import { Weapon } from './weapon.js';
 import { DuckManager } from './duck.js';
 import { Projectiles } from './projectiles.js';
 import { Pickups } from './pickups.js';
+import { Waves } from './waves.js';
 
 class Game {
   constructor() {
@@ -47,9 +48,11 @@ class Game {
     this.ducks = new DuckManager(this);
     this.projectiles = new Projectiles(this);
     this.pickups = new Pickups(this);
+    this.waves = new Waves(this);
 
     window.addEventListener('resize', () => this.onResize());
 
+    this.ui.setBestEverywhere(this.highScore);
     this.ui.showScreen('menu');
     this.renderer.setAnimationLoop(() => this.tick());
 
@@ -88,11 +91,32 @@ class Game {
       for (let i = 0; i < n; i++) {
         this.ducks.spawn(types[i % types.length], this.arena.getSpawnPoint(this.player.root.position));
       }
+      this.waves.reset();
+      this.ui.setWave(0);
+      this.ui.setScore(0);
+    } else {
+      this.waves.start();
     }
   }
 
-  /** يُستبدل بمدير الموجات في مرحلة النقاط */
-  onDuckKilled() {}
+  onDuckKilled(duck, isHead, center) {
+    this.waves.onDuckKilled(duck, isHead, center);
+  }
+
+  // ---------- أفضل نتيجة ----------
+  get highScore() {
+    try {
+      return Number(localStorage.getItem(CONFIG.storage.highScore)) || 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  saveHighScore(v) {
+    try {
+      localStorage.setItem(CONFIG.storage.highScore, String(v));
+    } catch { /* وضع خصوصية يمنع التخزين */ }
+  }
 
   pause() {
     if (this.state !== 'playing') return;
@@ -121,18 +145,38 @@ class Game {
     this.input.clear();
     this.scene.add(this.camera); // فكّ الكاميرا عن رأس اللاعب
     this.weapon.model.visible = false;
+    this.ducks.clear();
+    this.projectiles.clear();
+    this.pickups.clear();
+    this.particles.clear();
+    this.ui.clearBanner();
     this.ui.setHudVisible(false);
     this.ui.showScreen('menu');
   }
 
   gameOver() {
-    // تُستكمل في مرحلة الموجات والنقاط
+    if (this.state !== 'playing') return;
     this.state = 'gameover';
     this.input.releaseLock();
+    this.input.clear();
     this.scene.add(this.camera);
     this.weapon.model.visible = false;
+    this.ui.clearBanner();
     this.ui.setHudVisible(false);
-    this.ui.showScreen('gameover');
+    this.audio?.gameOver();
+
+    const { score, wave, kills } = this.waves;
+    const prevBest = this.highScore;
+    const isRecord = score > prevBest;
+    if (isRecord) this.saveHighScore(score);
+    const best = Math.max(prevBest, score);
+    this.ui.setBestEverywhere(best);
+    this.ui.fillGameOver({ score, wave, kills, best, isRecord });
+
+    // مهلة قصيرة: الكاميرا المدارية تعمل كلقطة نهاية قبل ظهور الشاشة
+    setTimeout(() => {
+      if (this.state === 'gameover') this.ui.showScreen('gameover');
+    }, 900);
   }
 
   /** كاميرا سينمائية تدور حول الواحة في القوائم */
@@ -154,6 +198,7 @@ class Game {
       this.ducks.update(dt);
       this.projectiles.update(dt);
       this.pickups.update(dt);
+      this.waves.update(dt);
     } else if (this.state === 'menu' || this.state === 'gameover') {
       this.menuCamera();
     }

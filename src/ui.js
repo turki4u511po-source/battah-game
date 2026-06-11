@@ -1,7 +1,10 @@
 // إدارة الواجهات العربية RTL: الشاشات وHUD.
 
+import * as THREE from 'three';
 import { CONFIG } from './config.js';
 import { fmt, clamp } from './utils.js';
+
+const POPUP_POOL = 14;
 
 const SCREEN_IDS = ['menu', 'howto', 'settings', 'pause', 'gameover', 'loading'];
 
@@ -59,6 +62,33 @@ export class UI {
     if (window.matchMedia('(pointer: coarse)').matches) {
       this.els['pointer-note'].classList.remove('hidden');
     }
+
+    // مخزن نوافذ النقاط المتطايرة
+    this.popupPool = [];
+    this.popupIdx = 0;
+    this._projV = new THREE.Vector3();
+    for (let i = 0; i < POPUP_POOL; i++) {
+      const div = document.createElement('div');
+      div.className = 'popup';
+      this.els.popups.appendChild(div);
+      this.popupPool.push(div);
+    }
+  }
+
+  /** نافذة نقاط متطايرة عند موضع في فضاء العالم */
+  popupAtWorld(worldPos, text, extraClass = '') {
+    this._projV.copy(worldPos).project(this.game.camera);
+    if (this._projV.z > 1) return; // خلف الكاميرا
+    const x = (this._projV.x * 0.5 + 0.5) * window.innerWidth;
+    const y = (-this._projV.y * 0.5 + 0.5) * window.innerHeight;
+    const div = this.popupPool[this.popupIdx];
+    this.popupIdx = (this.popupIdx + 1) % POPUP_POOL;
+    div.className = `popup ${extraClass}`;
+    div.textContent = text;
+    div.style.left = `${x}px`;
+    div.style.top = `${y}px`;
+    void div.offsetWidth; // إعادة تشغيل الحركة
+    div.classList.add('pop-show');
   }
 
   /** إظهار شاشة غطائية واحدة (أو لا شيء أثناء اللعب) */
@@ -164,5 +194,18 @@ export class UI {
     el.style.opacity = '1';
     clearTimeout(this.healTimer);
     this.healTimer = setTimeout(() => { el.style.opacity = '0'; }, 280);
+  }
+
+  clearBanner() {
+    clearTimeout(this.bannerTimer);
+    this.els['wave-banner'].classList.add('hidden');
+  }
+
+  fillGameOver({ score, wave, kills, best, isRecord }) {
+    this.els['go-score'].textContent = fmt(score);
+    this.els['go-wave'].textContent = fmt(wave);
+    this.els['go-kills'].textContent = fmt(kills);
+    this.els['go-best'].textContent = fmt(best);
+    this.els['go-record'].classList.toggle('hidden', !isRecord);
   }
 }
