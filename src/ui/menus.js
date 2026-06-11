@@ -40,8 +40,8 @@ export class Menus {
       if (!nav) return;
       game.audio?.ensure();
       if (nav === 'play') {
-        // المرحلة 1: بدء مباشر على ماب الاختبار
-        game.startMatch({ mode: 'tdm', mapId: 'test', difficulty: 'mid', weapon: 'alnimr' });
+        // يكتمل تدفق الاختيار في مرحلة القوائم
+        game.startMatch({ mode: 'tdm', mapId: 'ishbiliya', difficulty: 'mid', weapon: 'alnimr' });
       }
       // بقية الفروع (weapons/maps/record/settings) في مرحلة القوائم
     });

@@ -42,6 +42,13 @@ page.on('request', (req) => {
 await page.goto(`http://127.0.0.1:8765/index.html${suffix}`, { waitUntil: 'load' });
 await page.waitForTimeout(1200);
 
+function dumpErrors(label) {
+  if (!errors.length) return;
+  console.log(label);
+  for (const e of errors.slice(0, 12)) console.log(' -', e);
+}
+
+try {
 for (const act of actions) {
   if (act.startsWith('click:')) await page.click(act.slice(6));
   else if (act.startsWith('key:')) await page.keyboard.press(act.slice(4));
@@ -73,6 +80,13 @@ for (const act of actions) {
       { timeout: 180000, polling: 300 },
     );
   }
+}
+
+} catch (err) {
+  dumpErrors('PAGE ERRORS BEFORE FAILURE:');
+  console.log('ACTION FAILED:', String(err).split('\n')[0]);
+  await browser.close();
+  process.exit(1);
 }
 
 await page.waitForTimeout(waitMs);

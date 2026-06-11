@@ -11,12 +11,21 @@ import { Bot, botLoadouts } from './bots.js';
 import { Particles } from '../engine/particles.js';
 import { losClear } from '../engine/physics.js';
 import { makeTestMap } from '../maps/common.js';
+import { makeIshbiliya } from '../maps/ishbiliya.js';
+import { makeAwazem } from '../maps/awazem.js';
+import { makeDawadmi } from '../maps/dawadmi.js';
 import { pickNames } from '../data/bot-names.js';
 import { WEAPONS } from '../data/weapons-data.js';
 import { STR } from '../data/strings-ar.js';
 import { rand, fmtTime } from '../engine/utils.js';
 
-const MAP_BUILDERS = { test: makeTestMap };
+const MAP_BUILDERS = {
+  test: makeTestMap,
+  ishbiliya: makeIshbiliya,
+  awazem: makeAwazem,
+  dawadmi: makeDawadmi,
+};
+export const MAP_IDS = ['ishbiliya', 'awazem', 'dawadmi'];
 
 export function registerMap(id, builder) {
   MAP_BUILDERS[id] = builder;
