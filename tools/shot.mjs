@@ -41,7 +41,8 @@ for (const act of actions) {
     await page.mouse.down();
     await page.waitForTimeout(120);
     await page.mouse.up();
-  } else if (act.startsWith('wait:')) await page.waitForTimeout(Number(act.slice(5)));
+  } else if (act === 'down') await page.mouse.down();
+  else if (act === 'up') await page.mouse.up(); else if (act.startsWith('wait:')) await page.waitForTimeout(Number(act.slice(5)));
   else if (act.startsWith('eval:')) await page.evaluate(act.slice(5));
 }
 

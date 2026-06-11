@@ -6,6 +6,8 @@ import { Arena } from './arena.js';
 import { UI } from './ui.js';
 import { Input } from './input.js';
 import { Player } from './player.js';
+import { Particles } from './particles.js';
+import { Weapon } from './weapon.js';
 
 class Game {
   constructor() {
@@ -37,6 +39,8 @@ class Game {
     this.ui = new UI(this);
     this.input = new Input(this);
     this.player = new Player(this);
+    this.particles = new Particles(this.scene);
+    this.weapon = new Weapon(this);
 
     window.addEventListener('resize', () => this.onResize());
 
@@ -58,6 +62,9 @@ class Game {
     this.player.head.add(this.camera);
     this.camera.position.set(0, 0, 0);
     this.camera.rotation.set(0, 0, 0);
+    this.weapon.reset();
+    this.weapon.model.visible = true;
+    this.particles.clear();
 
     this.state = 'playing';
     this.ui.showScreen(null);
@@ -92,6 +99,7 @@ class Game {
     this.input.releaseLock();
     this.input.clear();
     this.scene.add(this.camera); // فكّ الكاميرا عن رأس اللاعب
+    this.weapon.model.visible = false;
     this.ui.setHudVisible(false);
     this.ui.showScreen('menu');
   }
@@ -101,6 +109,7 @@ class Game {
     this.state = 'gameover';
     this.input.releaseLock();
     this.scene.add(this.camera);
+    this.weapon.model.visible = false;
     this.ui.setHudVisible(false);
     this.ui.showScreen('gameover');
   }
@@ -120,9 +129,11 @@ class Game {
 
     if (this.state === 'playing') {
       this.player.update(dt);
+      this.weapon.update(dt);
     } else if (this.state === 'menu' || this.state === 'gameover') {
       this.menuCamera();
     }
+    this.particles.update(dt);
 
     this.renderer.render(this.scene, this.camera);
   }
