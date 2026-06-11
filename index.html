@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>بطه — حارس الواحة</title>
+  <meta name="description" content="لعبة تصويب ثلاثية الأبعاد في المتصفح: دافع عن الواحة ضد موجات البط الآلي!">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='14' cy='20' r='9' fill='%23ffd23f'/%3E%3Ccircle cx='21' cy='11' r='5.5' fill='%23ffd23f'/%3E%3Cpath d='M26 10l5 1.8-5 2.2z' fill='%23ff8c1a'/%3E%3Ccircle cx='22.5' cy='10' r='1.2' fill='%23222'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./styles.css">
+  <script type="importmap">{ "imports": { "three": "./vendor/three.module.js" } }</script>
+</head>
+<body>
+  <div id="app">
+    <canvas id="game-canvas"></canvas>
+
+    <!-- ======= واجهة اللعب (HUD) ======= -->
+    <div id="hud" class="screen hidden" aria-hidden="true">
+      <div id="hud-top">
+        <div class="hud-box"><span class="hud-label">النقاط</span><span class="hud-value" id="hud-score">0</span></div>
+        <div class="hud-box"><span class="hud-label">الموجة</span><span class="hud-value" id="hud-wave">—</span></div>
+        <div class="hud-box"><span class="hud-label">المتبقي</span><span class="hud-value" id="hud-left">—</span></div>
+        <div class="hud-box hud-dim"><span class="hud-label">الأفضل</span><span class="hud-value" id="hud-best">0</span></div>
+      </div>
+
+      <div id="combo-badge" class="hidden">سلسلة <span id="combo-mult">×2</span></div>
+
+      <div id="boss-bar-wrap" class="hidden">
+        <div class="boss-name">👑 الزعيم البطّوط</div>
+        <div id="boss-bar"><div id="boss-bar-fill"></div></div>
+      </div>
+
+      <div id="wave-banner" class="hidden"></div>
+
+      <div id="crosshair"><span class="ch-t"></span><span class="ch-b"></span><span class="ch-r"></span><span class="ch-l"></span><i></i></div>
+      <div id="hitmarker"></div>
+
+      <div id="hud-bottom">
+        <div id="health-wrap" class="hud-box">
+          <span class="hud-label">الصحة</span>
+          <div id="health-bar"><div id="health-fill"></div></div>
+          <span class="hud-value" id="health-num">100</span>
+        </div>
+        <div id="ammo-wrap" class="hud-box">
+          <span class="hud-label">الذخيرة</span>
+          <span class="hud-value"><span id="ammo-num">12</span><span class="ammo-total"> / ∞</span></span>
+          <div id="reload-bar" class="hidden"><div id="reload-fill"></div></div>
+          <div id="reload-hint" class="hidden">اضغط R لإعادة التعبئة</div>
+        </div>
+      </div>
+
+      <div id="damage-vignette"></div>
+      <div id="heal-flash"></div>
+      <div id="popups"></div>
+    </div>
+
+    <!-- ======= القائمة الرئيسية ======= -->
+    <div id="menu" class="screen overlay-screen">
+      <div class="card menu-card">
+        <div id="logo">
+          <svg viewBox="0 0 140 120" width="150" height="103" aria-hidden="true">
+            <ellipse cx="62" cy="78" rx="40" ry="30" fill="#ffd23f"/>
+            <ellipse cx="50" cy="80" rx="20" ry="13" fill="#f4b81e"/>
+            <circle cx="92" cy="42" r="22" fill="#ffd23f"/>
+            <path d="M110 38 l24 7 -24 10 z" fill="#ff8c1a"/>
+            <circle cx="99" cy="37" r="4.6" fill="#252220"/>
+            <circle cx="100.6" cy="35.4" r="1.5" fill="#fff"/>
+            <path d="M30 96 q6 8 14 4" stroke="#ff8c1a" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <path d="M58 102 q6 8 14 4" stroke="#ff8c1a" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <line x1="92" y1="20" x2="92" y2="8" stroke="#6b7c8a" stroke-width="3"/>
+            <circle cx="92" cy="6" r="4" fill="#39d0ff">
+              <animate attributeName="opacity" values="1;.35;1" dur="1.6s" repeatCount="indefinite"/>
+            </circle>
+            <path d="M97 64 a10 10 0 0 0 14 -6" stroke="#caa12f" stroke-width="3" fill="none"/>
+          </svg>
+        </div>
+        <h1 class="title">بطه</h1>
+        <p class="subtitle">حارس الواحة ضد البط الآلي!</p>
+        <div class="menu-buttons">
+          <button id="btn-start" class="btn primary">ابدأ اللعبة</button>
+          <button id="btn-howto" class="btn">طريقة اللعب</button>
+          <button id="btn-settings" class="btn">الإعدادات</button>
+        </div>
+        <p class="best-line">أفضل نتيجة: <span id="menu-best-num">0</span></p>
+        <p id="pointer-note" class="note hidden">تنبيه: اللعبة تحتاج فأرة ولوحة مفاتيح — يُفضَّل جهاز كمبيوتر.</p>
+      </div>
+    </div>
+
+    <!-- ======= طريقة اللعب ======= -->
+    <div id="howto" class="screen overlay-screen hidden">
+      <div class="card">
+        <h2>طريقة اللعب</h2>
+        <p class="howto-goal">دافع عن الواحة! اصمد أمام موجات البط الآلي وحقق أعلى نتيجة ممكنة.</p>
+        <ul class="controls-list">
+          <li><span class="key">W A S D</span> أو <span class="key">الأسهم</span><span class="ctl-desc">الحركة</span></li>
+          <li><span class="key">الفأرة</span><span class="ctl-desc">النظر والتصويب</span></li>
+          <li><span class="key">زر الفأرة الأيسر</span><span class="ctl-desc">إطلاق (استمر بالضغط للتكرار)</span></li>
+          <li><span class="key">Shift</span><span class="ctl-desc">جري</span></li>
+          <li><span class="key">Space</span><span class="ctl-desc">قفز</span></li>
+          <li><span class="key">R</span><span class="ctl-desc">إعادة تعبئة</span></li>
+          <li><span class="key">Esc</span><span class="ctl-desc">إيقاف مؤقت</span></li>
+        </ul>
+        <ul class="tips-list">
+          <li>إصابة الرأس تمنح ضررًا ونقاطًا مضاعفة.</li>
+          <li>القتل المتتابع يبني سلسلة ترفع مضاعف النقاط حتى ×4.</li>
+          <li>البط المُصاب يُسقط أحيانًا قلوب علاج — التقطها!</li>
+          <li>احذر بيض الزعيم البطّوط… ينفجر عند السقوط.</li>
+        </ul>
+        <button class="btn btn-back" data-back>رجوع</button>
+      </div>
+    </div>
+
+    <!-- ======= الإعدادات ======= -->
+    <div id="settings" class="screen overlay-screen hidden">
+      <div class="card">
+        <h2>الإعدادات</h2>
+        <div class="setting-row">
+          <label for="set-sens">حساسية الفأرة</label>
+          <input type="range" id="set-sens" min="0.4" max="2.2" step="0.1" value="1">
+          <span class="setting-val" id="set-sens-val">1.0</span>
+        </div>
+        <div class="setting-row">
+          <label for="set-vol">مستوى الصوت</label>
+          <input type="range" id="set-vol" min="0" max="1" step="0.05" value="0.8">
+          <span class="setting-val" id="set-vol-val">80%</span>
+        </div>
+        <div class="setting-row">
+          <label for="set-mute">كتم الصوت</label>
+          <input type="checkbox" id="set-mute">
+          <span class="setting-val"></span>
+        </div>
+        <button class="btn btn-back" data-back>رجوع</button>
+      </div>
+    </div>
+
+    <!-- ======= الإيقاف المؤقت ======= -->
+    <div id="pause" class="screen overlay-screen hidden">
+      <div class="card">
+        <h2>إيقاف مؤقت</h2>
+        <div class="menu-buttons">
+          <button id="btn-resume" class="btn primary">استئناف</button>
+          <button id="btn-restart" class="btn">إعادة اللعب</button>
+          <button id="btn-pause-settings" class="btn">الإعدادات</button>
+          <button id="btn-quit" class="btn">الخروج للقائمة</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======= نهاية اللعبة ======= -->
+    <div id="gameover" class="screen overlay-screen hidden">
+      <div class="card">
+        <h2>انتهت اللعبة!</h2>
+        <p id="go-record" class="record-line hidden">🎉 رقم قياسي جديد!</p>
+        <div class="go-stats">
+          <div class="go-stat"><span class="hud-label">النتيجة</span><span class="go-num" id="go-score">0</span></div>
+          <div class="go-stat"><span class="hud-label">الموجة</span><span class="go-num" id="go-wave">1</span></div>
+          <div class="go-stat"><span class="hud-label">الإسقاطات</span><span class="go-num" id="go-kills">0</span></div>
+          <div class="go-stat"><span class="hud-label">الأفضل</span><span class="go-num" id="go-best">0</span></div>
+        </div>
+        <div class="menu-buttons">
+          <button id="btn-again" class="btn primary">العب من جديد</button>
+          <button id="btn-go-menu" class="btn">القائمة الرئيسية</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======= التحميل ======= -->
+    <div id="loading" class="screen overlay-screen">
+      <div class="card loading-card"><p>جارٍ تجهيز الواحة…</p></div>
+    </div>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
