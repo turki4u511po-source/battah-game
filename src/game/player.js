@@ -271,6 +271,26 @@ export class Combatant {
     }
   }
 
+  /** صوت خطوة حسب السطح — موضعي للآخرين (القسم 11) */
+  emitFootstep(hSpeed) {
+    const audio = this.game.audio;
+    if (!audio) return;
+    const surface = this.match.map.surfaceAt(this.pos.x, this.pos.z);
+    const run = clamp(hSpeed / SPEEDS.sprint, 0.4, 1) * (this.stance === 'stand' ? 1 : 0.55);
+    if (this.isPlayer) {
+      audio.footstep(surface, run, 0, 0);
+      return;
+    }
+    const lp = this.match.player;
+    const dx = this.pos.x - lp.pos.x;
+    const dz = this.pos.z - lp.pos.z;
+    const dist = Math.hypot(dx, dz);
+    if (dist > 16) return;
+    const f = lp.forward2D();
+    const pan = clamp((dx * f.z - dz * f.x) / Math.max(dist, 1), -1, 1);
+    audio.footstep(surface, run, dist, pan);
+  }
+
   // ---------- تحريك النموذج ----------
   updatePose(dt) {
     const m = this.model;
@@ -279,7 +299,15 @@ export class Combatant {
 
     const hSpeed = Math.hypot(this.vel.x, this.vel.z);
     const moving = hSpeed > 0.5 && this.onGround;
-    if (moving) this.walkPhase += dt * (4 + hSpeed * 1.45);
+    if (moving) {
+      this.walkPhase += dt * (4 + hSpeed * 1.45);
+      // خطوة عند كل عبور نصف دورة
+      const s = Math.sin(this.walkPhase);
+      if (this._stepSin !== undefined && Math.sign(s) !== Math.sign(this._stepSin)) {
+        this.emitFootstep(hSpeed);
+      }
+      this._stepSin = s;
+    }
     const swing = moving ? Math.sin(this.walkPhase) * clamp(hSpeed / SPEEDS.sprint, 0.3, 1) : 0;
 
     if (this.stance === 'prone') {
@@ -487,5 +515,6 @@ export class Player extends Combatant {
   onDamaged(attacker, amount) {
     this.shake = Math.min(1, this.shake + amount * 0.02);
     this.match.hud?.playerDamaged(attacker, amount, this.health);
+    this.game.audio?.hurt();
   }
 }

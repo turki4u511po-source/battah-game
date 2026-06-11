@@ -314,5 +314,14 @@ export class HUD {
     if (match.mode?.id === 'dom') {
       this.updateDom(match.mode.points, match.player, this.game.renderer.camera);
     }
+    // نبض قلب عند صحة أقل من 30 (القسم 4)
+    const p = match.player;
+    if (p.alive && p.health < 30) {
+      this._heartT = (this._heartT || 0) - dt;
+      if (this._heartT <= 0) {
+        this._heartT = 0.95;
+        this.game.audio?.heartbeat();
+      }
+    }
   }
 }

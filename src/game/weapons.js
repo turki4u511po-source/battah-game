@@ -322,7 +322,7 @@ export function fireHitscan(match, shooter, w, spreadRad) {
 
   match.notifyShot?.(shooter);
 
-  // صوت موضعي بالنسبة للمستمع (اللاعب)
+  // صوت موضعي بالنسبة للمستمع (اللاعب): يمين المستمع = pan موجب
   const lp = match.player;
   if (shooter === lp) {
     game.audio?.shot(w.id, 0, 0);
@@ -332,7 +332,7 @@ export function fireHitscan(match, shooter, w, spreadRad) {
     const dist = Math.hypot(dx, dz);
     const f = lp.forward2D();
     const pan = clamp((dx * f.z - dz * f.x) / Math.max(dist, 1), -1, 1);
-    game.audio?.shot(w.id, dist, -pan);
+    game.audio?.shot(w.id, dist, pan);
   }
 }
 
@@ -450,7 +450,6 @@ export class ViewModel {
     if (!this.models[id]) {
       const built = buildWeaponModel(id);
       built.group.visible = false;
-      built.muzzle.add(this.flashClone ?? this.flash);
       this.root.add(built.group);
       this.models[id] = built;
     }

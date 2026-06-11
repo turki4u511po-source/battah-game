@@ -125,6 +125,7 @@ class Game {
     this.audio?.ensure();
     this.audio?.menuMusic(false);
     this.match = new Match(this, opts);
+    this.audio?.matchAmbience(this.match.map.echo);
     this.state = 'playing';
     this.menus.show(null);
     this.hud.setVisible(true);
