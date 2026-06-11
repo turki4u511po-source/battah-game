@@ -43,6 +43,23 @@ export function buildPause() {
   return s;
 }
 
+export function buildMatchEnd() {
+  const s = el('div', 'screen overlay hidden');
+  s.id = 'screen-end';
+  s.innerHTML = `
+    <div class="card end-card">
+      <h1 id="end-title" class="end-title"></h1>
+      <div id="end-team-score" class="end-team-score"></div>
+      <div id="end-scoreboard"></div>
+      <div class="row-buttons">
+        <button class="btn primary" data-act="replay">${STR.replay}</button>
+        <button class="btn" data-act="change-weapon">${STR.changeWeapon}</button>
+        <button class="btn" data-act="menu">${STR.mainMenu}</button>
+      </div>
+    </div>`;
+  return s;
+}
+
 export function buildRotateNote() {
   const s = el('div', 'screen overlay hidden');
   s.id = 'screen-rotate';

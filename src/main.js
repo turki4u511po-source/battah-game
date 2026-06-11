@@ -27,6 +27,8 @@ class Game {
     this.time = 0;
 
     this.settings = this.loadSettings();
+    // تسريع المحاكاة للفحص الآلي فقط (?ff=N خطوة لكل إطار)
+    this.ff = Math.min(Math.max(Number(this.params.get('ff')) || 1, 1), 24);
     this.renderer = new Renderer(this.canvas, this.settings);
     this.input = new Input(this);
     this.audio = new AudioSys(this);
@@ -109,6 +111,17 @@ class Game {
     this.input.requestLock();
   }
 
+  /** نهاية الماتش بقرار النمط: شاشة النتيجة + السكوربورد */
+  matchEnded(winnerTeam) {
+    this.state = 'matchend';
+    this.input.releaseLock();
+    this.input.clear();
+    this.input.setTouchVisible(false);
+    this.hud.setVisible(false);
+    this.audio?.winLose(winnerTeam === 'blue');
+    this.menus.showEnd(winnerTeam);
+  }
+
   /** إنهاء الماتش — إلى القائمة أو شاشة النتيجة */
   endMatch(toMenu = false) {
     if (!this.match) return;
@@ -130,7 +143,11 @@ class Game {
     this.time += dt;
 
     if (this.state === 'playing' && this.match) {
-      this.match.update(dt);
+      if (this.ff > 1) {
+        for (let i = 0; i < this.ff && this.state === 'playing'; i++) this.match.update(0.05);
+      } else {
+        this.match.update(dt);
+      }
       this.hud.update(dt);
       this.renderer.render(this.match.scene);
     } else if (this.match && (this.state === 'paused' || this.state === 'matchend')) {

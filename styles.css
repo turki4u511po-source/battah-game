@@ -196,6 +196,21 @@ h2 { color: var(--gold); font-size: 1.7rem; margin-bottom: 1.1rem; font-weight: 
 .dom-pt .fill.f-red { background: rgba(212, 59, 47, 0.6); }
 .dom-pt.contested { animation: pulse 0.8s ease-in-out infinite; }
 
+/* علامات النقاط في المشهد */
+.dom-world {
+  position: absolute; transform: translate(-50%, -100%);
+  text-align: center; pointer-events: none;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
+}
+.dom-world b {
+  display: block; font-size: 1.3rem; color: #dfe7f0;
+  background: rgba(70, 80, 95, 0.6); border-radius: 7px; padding: 0 0.45rem;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+.dom-world.own-blue b { background: rgba(47, 111, 212, 0.75); }
+.dom-world.own-red b { background: rgba(212, 59, 47, 0.75); }
+.dom-world i { font-style: normal; font-size: 0.78rem; color: rgba(233, 238, 245, 0.85); }
+
 /* كيل فيد — أعلى اليمين حسب المواصفات */
 #killfeed {
   position: absolute; top: 0.9rem; right: 1rem;
@@ -284,6 +299,17 @@ h2 { color: var(--gold); font-size: 1.7rem; margin-bottom: 1.1rem; font-weight: 
   position: absolute; bottom: 5.4rem; left: 50%; transform: translateX(-50%);
   color: #9ec9ff; font-size: 0.9rem; animation: pulse 1s infinite;
 }
+
+/* ======= شاشة نهاية الماتش ======= */
+.end-card { min-width: min(640px, 94vw); }
+.end-title { font-size: 3.2rem; font-weight: 700; margin-bottom: 0.3rem; }
+.end-title.win { color: var(--gold); text-shadow: 0 4px 30px rgba(232, 183, 58, 0.4); }
+.end-title.lose { color: var(--red-bright); }
+.end-team-score { color: var(--dim); font-size: 1.3rem; margin-bottom: 1rem; font-weight: 600; }
+.end-team-score b.blue { color: var(--blue-bright); }
+.end-team-score b.red { color: var(--red-bright); }
+#end-scoreboard { margin: 0.6rem 0 1.2rem; max-height: 46vh; overflow-y: auto; }
+.row-buttons { display: flex; gap: 0.7rem; justify-content: center; flex-wrap: wrap; }
 
 /* ======= تحكم اللمس ======= */
 #touch-ui { position: absolute; inset: 0; z-index: 20; pointer-events: none; }

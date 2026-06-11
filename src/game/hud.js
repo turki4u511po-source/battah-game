@@ -188,7 +188,108 @@ export class HUD {
       : '';
   }
 
-  // ====== تُستكمل في مرحلة الأنماط ======
-  showScoreboard() {}
-  update() {}
+  // ---------- السكور والتايمر ----------
+  setTopbar(blue, red, timer) {
+    if (this._tbB !== blue) { this.els['score-blue'].textContent = blue; this._tbB = blue; }
+    if (this._tbR !== red) { this.els['score-red'].textContent = red; this._tbR = red; }
+    if (this._tbT !== timer) { this.els['match-timer'].textContent = timer; this._tbT = timer; }
+  }
+
+  // ---------- نقاط الاستحواذ ----------
+  setDomVisible(v) {
+    this.els['dom-points'].classList.toggle('hidden', !v);
+    if (v && !this.domEls) {
+      this.domEls = [];
+      this.domWorldEls = [];
+      for (const id of ['A', 'B', 'C']) {
+        const el = document.createElement('div');
+        el.className = 'dom-pt';
+        el.innerHTML = `<div class="fill"></div><span>${id}</span>`;
+        this.els['dom-points'].appendChild(el);
+        this.domEls.push(el);
+
+        const w = document.createElement('div');
+        w.className = 'dom-world hidden';
+        w.innerHTML = `<b>${id}</b><i></i>`;
+        this.root.appendChild(w);
+        this.domWorldEls.push(w);
+      }
+    }
+    if (!v && this.domWorldEls) {
+      for (const w of this.domWorldEls) w.classList.add('hidden');
+    }
+  }
+
+  updateDom(points, player, camera) {
+    if (!this.domEls) return;
+    for (let i = 0; i < points.length; i++) {
+      const p = points[i];
+      const el = this.domEls[i];
+      el.className = `dom-pt${p.owner ? ` own-${p.owner}` : ''}${p.contested ? ' contested' : ''}`;
+      const fill = el.firstElementChild;
+      fill.className = `fill${p.capTeam ? ` f-${p.capTeam}` : ''}`;
+      fill.style.transform = `scaleY(${p.capTeam ? p.progress : 0})`;
+
+      // علامة عالمية فوق النقطة مع المسافة
+      const w = this.domWorldEls[i];
+      this._projV.set(p.x, p.y + 5.2, p.z).project(camera);
+      if (this._projV.z > 1) {
+        w.classList.add('hidden');
+        continue;
+      }
+      w.classList.remove('hidden');
+      const x = (this._projV.x * 0.5 + 0.5) * window.innerWidth;
+      const y = (-this._projV.y * 0.5 + 0.5) * window.innerHeight;
+      w.style.left = `${clamp(x, 30, window.innerWidth - 30)}px`;
+      w.style.top = `${clamp(y, 40, window.innerHeight - 60)}px`;
+      w.className = `dom-world ${p.owner ? `own-${p.owner}` : ''}`;
+      const dist = Math.hypot(p.x - player.pos.x, p.z - player.pos.z);
+      w.lastElementChild.textContent = `${Math.round(dist)}${STR.meters}`;
+    }
+  }
+
+  // ---------- السكوربورد ----------
+  showScoreboard(held) {
+    this.sbVisible = held;
+    this.els.scoreboard.classList.toggle('hidden', !held);
+    if (held) this.renderScoreboard();
+  }
+
+  renderScoreboard() {
+    const match = this.game.match;
+    if (!match) return;
+    const rows = [];
+    for (const team of ['blue', 'red']) {
+      const list = match.combatants
+        .filter((c) => c.team === team)
+        .sort((a, b) => b.score - a.score || b.kills - a.kills);
+      rows.push(`<tr class="sb-team-head ${team}"><td colspan="4">${team === 'blue' ? STR.teamBlue : STR.teamRed} — ${match.teamScores[team]}</td></tr>`);
+      for (const c of list) {
+        rows.push(
+          `<tr class="sb-row ${team}${c.isPlayer ? ' me' : ''}">` +
+          `<td>${c.name}</td><td class="num">${c.kills}</td>` +
+          `<td class="num">${c.deaths}</td><td class="num">${c.score}</td></tr>`,
+        );
+      }
+    }
+    this.els.scoreboard.innerHTML =
+      `<table class="sb-table"><thead><tr><th></th><th class="num">${STR.kills}</th>` +
+      `<th class="num">${STR.deaths}</th><th class="num">${STR.points}</th></tr></thead>` +
+      `<tbody>${rows.join('')}</tbody></table>`;
+  }
+
+  update(dt) {
+    const match = this.game.match;
+    if (!match) return;
+    if (this.sbVisible) {
+      this._sbT = (this._sbT || 0) - dt;
+      if (this._sbT <= 0) {
+        this._sbT = 0.5;
+        this.renderScoreboard();
+      }
+    }
+    if (match.mode?.id === 'dom') {
+      this.updateDom(match.mode.points, match.player, this.game.renderer.camera);
+    }
+  }
 }
